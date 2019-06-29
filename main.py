@@ -64,6 +64,8 @@ def _requestData(tag: str,
             _logger.debug(first_taf)
             raw_text = first_taf.find('.//raw_text')
             ret_val = raw_text.text
+            if tag == "TAF":
+                ret_val = ret_val.replace(" FM", "\n     FM")
 
     except Exception as e: # FIXME: Bare except
         _logger.warning("Hit an exception")
@@ -110,7 +112,7 @@ def _getStationName(input: flask.Request) -> str:
 
 
 def _buildSlackResponse(text: str,
-                        inChannel: Optional[bool] = True) -> Tuple[str, int, dict]:
+                        inChannel: Optional[bool] = True) -> str:
     """
     Builds responses for Slack commands. Returns the JSON text "body", HTTP
     status code, and headers (content type)
@@ -120,9 +122,16 @@ def _buildSlackResponse(text: str,
         "text": "Not set"
     }
     if not text:
-        response['text'] = 'No text set. Error?'
+        response['text'] = 'No text set. Bad identifier? Other error?'
     else:
         response['text'] = text
+        response['blocks'] = [{
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "```" + text + "```"
+            }
+        }]
 
     return json.dumps(response)
 
@@ -152,7 +161,6 @@ def getSlackTaf(input: flask.Request) -> Tuple[str, int, dict]:
     _logger.debug("Entered taf")
     station = _getStationName(input)
     txt = _requestData('TAF', station)
-    txt = txt.replace(" FM", "\n\tFM")
     return (_buildSlackResponse(txt),
             200,
             {'Content-type': 'application/json'})
